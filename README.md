@@ -8,6 +8,53 @@ UUIDv7 function.
 # System Diagram
 ![Scout Cam System Diagram](images/ScoutCamSystemDiagram_web_service.png)
 
+---
+
+# Database Tables
+
+## `users`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `bigint` | Primary key, auto-increment |
+| `public_user_id` | `uuid` | UUIDv7, unique, non-editable |
+| `email` | `varchar(255)` | Unique |
+| `first_name` | `varchar(150)` | |
+| `last_name` | `varchar(150)` | |
+| `username` | `varchar(150)` | Unique |
+| `password` | `varchar(128)` | Hashed |
+| `is_active` | `boolean` | |
+| `is_staff` | `boolean` | |
+| `is_superuser` | `boolean` | |
+| `date_joined` | `timestamptz` | |
+| `last_login` | `timestamptz` | Nullable |
+
+## `camera_camera`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `bigint` | Primary key, auto-increment |
+| `public_camera_id` | `uuid` | UUIDv7, unique, non-editable |
+| `owner_id` | `bigint` | Foreign key → `users.id` |
+| `location` | `varchar(100)` | |
+| `created_at` | `timestamptz` | Auto-set on create |
+
+## `rules_rule`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `bigint` | Primary key, auto-increment |
+| `public_rule_id` | `uuid` | UUIDv7, unique, non-editable |
+| `owner_id` | `bigint` | Foreign key → `users.id` |
+| `camera_id` | `bigint` | Foreign key → `camera_camera.id` |
+| `rule` | `varchar(240)` | |
+| `rule_nickname` | `varchar(240)` | |
+| `is_enabled` | `boolean` | Default: `true` |
+| `created_at` | `timestamptz` | Auto-set on create |
+
+---
+
+
 # API URL Reference
 
 ## Authentication
@@ -309,8 +356,6 @@ Response `200 OK`:
 ### `DELETE /v1/cameras/<public_camera_id>/rules/<public_rule_id>/`
 
 Response `204 No Content`
-
----
 
 ## Admin
 
