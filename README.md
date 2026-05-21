@@ -8,10 +8,16 @@ UUIDv7 function.
 # System Diagram
 ![Scout Cam System Diagram](images/ScoutCamSystemDiagram_web_service.png)
 
-### Other parts of the system
-[Scout Cam Event Processor](https://github.com/ataffe/ScoutCamEventProcessor)
+### Brief Overview
+[Scout Cam Web Service](https://github.com/ataffe/ScoutCamEventProcessor) - Handles CRUD operations for Users, Cameras, and Rules.
 
-[Scout Cam Camera Client](https://github.com/ataffe/GuardianCamCameraClient)
+[Scout Cam Event Processor](https://github.com/ataffe/GuardianCamCameraClient) - Processes images received from cameras and send users a push notification if the 
+image matches one or more of the users rules.
+
+[Scout Cam Camera Client](https://github.com/ataffe/GuardianCamCameraClient) - Detects Motion and filters images using object detection and then sends the image to the 
+event processor if an object is detected.
+
+Scout Cam iOS App - User app for managing cameras and notifing the user of events.
 
 ---
 
