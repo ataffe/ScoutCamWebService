@@ -6,7 +6,7 @@ All endpoints are secured using JWTs and the service is currently designed to be
 UUIDv7 function.
 
 # System Diagram
-![Scout Cam System Diagram](images/ScoutCamSystemDiagram_web_service.png)
+![Scout Cam System Diagram](https://github.com/ataffe/ScoutCamAssets/blob/main/system_diagram/scout-cam-system-diagram-web-service.png?raw=true)
 
 ### Brief Overview
 
