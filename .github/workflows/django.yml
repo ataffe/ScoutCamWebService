@@ -37,6 +37,9 @@ jobs:
       DATABASE_PASSWORD: root
       DATABASE_HOST: localhost
       DATABASE_PORT: 5432
+      AWS_PROFILE: ${{ secrets.AWS_PROFILE }}
+      AWS_REGION: AWS_REGION
+      AWS_IMG_UPLOAD_BUCKET: ${{ secrets.AWS_IMG_UPLOAD_BUCKET }}
 
     steps:
     - uses: actions/checkout@v4

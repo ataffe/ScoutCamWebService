@@ -12,10 +12,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -23,7 +23,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'djangoinsecure-asoikdfjapoiwehfj2323894askjdf23')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(os.environ.get("DEBUG", default=0))
+DEBUG = bool(os.environ.get("DEBUG", default=1))
+
+# Check for AWS_PROFILE in dev environment
+if DEBUG:
+    load_dotenv()
+    assert os.environ.get("AWS_PROFILE"), \
+        "Set AWS_PROFILE in .env for local dev"
 
 ALLOWED_HOSTS = []
 
@@ -34,6 +40,7 @@ INSTALLED_APPS = [
     'rules',
     'users',
     'camera',
+    'uploads',
     'django_extensions',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -76,9 +83,6 @@ WSGI_APPLICATION = 'scoutcamservice.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-# POSTGRES DB
-
 DATABASES = {
     'default': {
         'ENGINE': f'django.db.backends.{os.getenv('DATABASE_ENGINE', 'postgresql')}',
@@ -140,3 +144,8 @@ AUTH_USER_MODEL = 'users.User'
 # 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a , between each.
 # For example: 'DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1,[::1]'
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1').split(',')
+
+
+# AWS Environment Variables
+AWS_REGION = os.environ["AWS_REGION"]
+AWS_IMG_UPLOAD_BUCKET = os.environ["AWS_IMG_UPLOAD_BUCKET"]
