@@ -369,6 +369,45 @@ Response `200 OK`:
 
 Response `204 No Content`
 
+---
+
+## Uploads
+
+| Method | URL | Name |
+|--------|-----|------|
+| POST | `/v1/uploads/presign` | `uploads:presigned_upload_url` |
+
+### `POST /v1/uploads/presign`
+
+Returns a presigned S3 URL the client can use to upload an image directly to S3. The URL expires in 300 seconds.
+
+Request:
+```json
+{
+  "content-type": "image/jpeg"
+}
+```
+
+Supported content types: `image/jpeg`, `image/png`. Defaults to `image/jpeg` if omitted.
+
+Response `200 OK`:
+```json
+{
+  "url": "https://s3.amazonaws.com/bucket/uploads/<public_user_id>/<uuid>.jpeg?...",
+  "key": "uploads/<public_user_id>/<uuid>.jpeg",
+  "expires_in": 300
+}
+```
+
+Response `400 Bad Request` (unsupported content type):
+```json
+{
+  "detail": "Unsupported content type"
+}
+```
+
+---
+
 ## Admin
 
 | URL | Name |

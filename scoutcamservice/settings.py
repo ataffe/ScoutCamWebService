@@ -16,7 +16,6 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -34,6 +33,7 @@ INSTALLED_APPS = [
     'rules',
     'users',
     'camera',
+    'uploads',
     'django_extensions',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -76,9 +76,6 @@ WSGI_APPLICATION = 'scoutcamservice.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-# POSTGRES DB
-
 DATABASES = {
     'default': {
         'ENGINE': f'django.db.backends.{os.getenv('DATABASE_ENGINE', 'postgresql')}',
@@ -140,3 +137,8 @@ AUTH_USER_MODEL = 'users.User'
 # 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a , between each.
 # For example: 'DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1,[::1]'
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1').split(',')
+
+
+# AWS Environment Variables
+AWS_REGION = os.environ.get('AWS_REGION', '')
+AWS_IMG_UPLOAD_BUCKET = os.environ.get('AWS_IMG_UPLOAD_BUCKET', '')
