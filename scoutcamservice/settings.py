@@ -24,11 +24,6 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'djangoinsecure-asoikdfjapoiweh
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(os.environ.get("DEBUG", default=1))
 
-# Check for AWS_PROFILE in dev environment
-if DEBUG:
-    assert os.environ.get("AWS_PROFILE"), \
-        "Set AWS_PROFILE in .env for local dev"
-
 ALLOWED_HOSTS = []
 
 
