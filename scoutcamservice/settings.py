@@ -140,5 +140,5 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1').split(',')
 
 
 # AWS Environment Variables
-AWS_REGION = os.environ["AWS_REGION"]
-AWS_IMG_UPLOAD_BUCKET = os.environ["AWS_IMG_UPLOAD_BUCKET"]
+AWS_REGION = os.environ.get('AWS_REGION', '')
+AWS_IMG_UPLOAD_BUCKET = os.environ.get('AWS_IMG_UPLOAD_BUCKET', '')
