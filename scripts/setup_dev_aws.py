@@ -49,6 +49,7 @@ def create_sqs_queue(queue_name, port):
                                   'RedrivePolicy': json.dumps({
                                       'deadLetterTargetArn': dlq_arn,
                                       'maxReceiveCount': 10, # move to DLQ after 3 failed receive attempts
+                                      'MessageRetentionPeriod': 3600,
                                   })
                               })
     image_queue_url = image_queue.url
@@ -79,6 +80,8 @@ def test_system(image_queue, s3_image_bucket):
     s3_image_bucket.put_object(Key='test', Body=b'test')
     messages = image_queue.receive_messages(MaxNumberOfMessages=2, WaitTimeSeconds=5)
     assert len(messages) == 2
+    for message in messages:
+        message.delete()
     print('System test passed!')
 
 if __name__ == '__main__':
