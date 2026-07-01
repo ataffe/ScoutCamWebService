@@ -80,7 +80,6 @@ def test_system(image_queue, s3_image_bucket):
     messages = image_queue.receive_messages(MaxNumberOfMessages=2, WaitTimeSeconds=5)
     assert len(messages) == 2
     print('System test passed!')
-    print(f'Received message: {json.dumps(json.loads(messages[1].body), indent=4)}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('A script to set up AWS services on a dev machine running a moto sever for testing.')
