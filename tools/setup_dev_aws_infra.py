@@ -6,7 +6,7 @@ import requests
 import json
 
 S3_BUCKET_NAME = 'scout-cam-images-dev'
-SQS_QUEUE_NAME = 'scout-cam-image-queue'
+SQS_QUEUE_NAME = 'scout-cam-image-queue-dev'
 
 def create_s3_bucket(bucket_name, queue_arn, port):
     s3 = boto3.resource(
