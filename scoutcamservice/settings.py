@@ -74,6 +74,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'scoutcamservice.wsgi.application'
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',  # Captures DEBUG and above at the handler level
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),  # Sets the global log level
+    },
+}
 
 # Database
 DATABASES = {
@@ -134,11 +148,18 @@ STATIC_URL = 'static/'
 
 AUTH_USER_MODEL = 'users.User'
 
-# 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a , between each.
+# 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a, between each.
 # For example: 'DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1,[::1]'
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1').split(',')
-
+# ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1').split(',')
+ALLOWED_HOSTS = ['localhost', '10.0.0.126']
 
 # AWS Environment Variables
 AWS_REGION = os.environ.get('AWS_REGION', '')
 AWS_IMG_UPLOAD_BUCKET = os.environ.get('AWS_IMG_UPLOAD_BUCKET', '')
+AWS_ENDPOINT_URL = os.environ.get("AWS_ENDPOINT_URL", default=None)
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", default="test")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", default="test")
+
+# Environment Tracking Variables
+ENVIRONMENT = os.environ.get('ENV', default="dev")
+DEV_IP = os.environ.get('DEV_IP', default="127.0.0.1")
