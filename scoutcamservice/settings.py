@@ -33,7 +33,7 @@ INSTALLED_APPS = [
     'rules',
     'users',
     'camera',
-    'uploads',
+    'device',
     'django_extensions',
     'rest_framework',
     'rest_framework_simplejwt',

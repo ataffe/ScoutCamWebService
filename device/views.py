@@ -22,7 +22,7 @@ class PresignedUploadUrl(APIView):
             return Response({'detail': 'Unsupported content type'}, status=status.HTTP_400_BAD_REQUEST)
 
         image_format = 'jpeg' if content_type == 'image/jpeg' else 'png'
-        img_key = f'uploads/{camera_id}/{uuid.uuid4()}.{image_format}'
+        img_key = f'device/{camera_id}/{uuid.uuid4()}.{image_format}'
         s3 = boto3.client(
             's3',
             region_name=settings.AWS_REGION,
