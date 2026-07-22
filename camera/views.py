@@ -11,15 +11,29 @@ from rest_framework import status
 from rest_framework import viewsets, permissions
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 
 from camera.models import Camera
 from camera.serializers import CameraSerializer, CameraRegistrationSerializer, ProvisionCameraSerializer, ClaimCameraSerializer
+from camera.authentication import CameraTokenAuthentication, CameraJWTAuthentication
 
 ALLOWED_TYPES = {"image/jpeg", "image/png"}
 logger = logging.getLogger(__name__)
+
+class CameraTokenExchangeView(APIView):
+    authentication_classes = [CameraTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        camera = request.user
+        token = AccessToken()
+        token['public_camera_id'] = str(camera.public_camera_id)
+        token['scope'] = 'camera'
+
+        return Response({'access': str(token)}, status=status.HTTP_200_OK)
 
 class CameraViewSet(viewsets.ModelViewSet):
     serializer_class = CameraSerializer
@@ -120,22 +134,19 @@ class CameraClaimView(APIView):
         return Response({'public_camera_id': camera.public_camera_id}, status=status.HTTP_200_OK)
 
 
-class PresignedUploadView(APIView):
+class PresignedUploadUrlView(APIView):
+    authentication_classes = [CameraJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, public_camera_id):
-        logger.info(f'Generating a presigned url for user: {request.user.public_user_id}')
+    def post(self, request):
+        # User is really a Camera because CameraJWTAuthentication returns a camera instead of a user.
+        # but django assigns the return value of authenticate to request.user
+        camera = request.user
+        public_camera_id = camera.public_camera_id
+        logger.info(f'Generating a presigned url for camera: {public_camera_id}')
         content_type = request.data.get('content_type', 'image/jpeg')
         if content_type not in ALLOWED_TYPES:
             return Response({'detail': 'Unsupported content type'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            camera = Camera.objects.get(public_camera_id=public_camera_id)
-        except Camera.DoesNotExist:
-            return Response({'detail': 'Camera does not exist'}, status=status.HTTP_404_NOT_FOUND)
-
-        if camera.owner != request.user:
-            return Response({'detail': 'Camera does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
         image_format = 'jpeg' if content_type == 'image/jpeg' else 'png'
         img_key = f'device/{public_camera_id}/{uuid.uuid4()}.{image_format}'

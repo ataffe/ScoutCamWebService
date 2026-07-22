@@ -32,6 +32,10 @@ class Camera(models.Model):
             ),
         ]
 
+    @property
+    def is_authenticated(self):
+        return True
+
     def __str__(self):
         owner_id = self.owner_id if self.owner_id is not None else 'unclaimed'
         return f'Camera(serial_num: {self.device_id}) at location {self.location} for user {owner_id}.'

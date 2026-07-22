@@ -7,9 +7,16 @@ from rest_framework.test import APIClient
 from users.models import User
 from camera.models import Camera
 from django.urls import reverse
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 
 DEVICE_ID = '1234567890ABCDEF'
+
+
+def camera_access_token(camera):
+    token = AccessToken()
+    token['public_camera_id'] = str(camera.public_camera_id)
+    token['scope'] = 'camera'
+    return str(token)
 
 def make_user(username, email, password='StrongPass123!', first_name='Test', last_name='User'):
     return User.objects.create_user(
@@ -282,34 +289,33 @@ class CameraProvisioningFlowTests(TestCase):
 
 
 class PresignedUploadTests(TestCase):
+    """PresignedUploadUrlView is called by the camera itself, authenticated with a
+    camera-scoped JWT (see CameraTokenExchangeTests), not a human user's JWT. The
+    target camera is derived from the token, not from a URL/body parameter."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='alice', email='alice@example.com', password='StrongPass123!',
             first_name='Alice', last_name='Smith',
         )
-        self.other_user = User.objects.create_user(
-            username='bob', email='bob@example.com', password='StrongPass123!',
-            first_name='Bob', last_name='Jones',
-        )
         self.camera = Camera.objects.create(owner=self.user, location='Front door')
-        refresh = RefreshToken.for_user(self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {camera_access_token(self.camera)}')
 
-    def presign(self, camera_id, content_type='image/jpeg'):
+    def presign(self, content_type='image/jpeg'):
         return self.client.post(
-            reverse('camera:presigned_upload', kwargs={'public_camera_id': camera_id}),
+            reverse('camera:presigned_upload'),
             data={'content_type': content_type},
             format='json',
         )
 
     @patch('camera.views.boto3.client')
-    def test_presigned_upload_returns_url_for_owned_camera(self, mock_boto_client):
+    def test_presigned_upload_returns_url_for_authenticated_camera(self, mock_boto_client):
         mock_s3 = MagicMock()
         mock_s3.generate_presigned_url.return_value = 'https://example.com/presigned'
         mock_boto_client.return_value = mock_s3
 
-        response = self.presign(self.camera.public_camera_id)
+        response = self.presign()
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -321,20 +327,96 @@ class PresignedUploadTests(TestCase):
         _, kwargs = mock_s3.generate_presigned_url.call_args
         self.assertEqual(kwargs['Params']['ContentType'], 'image/jpeg')
 
+    @patch('camera.views.boto3.client')
+    def test_presigned_upload_uses_authenticated_camera_even_if_another_camera_exists(self, mock_boto_client):
+        Camera.objects.create(owner=self.user, location='Garage')
+        mock_s3 = MagicMock()
+        mock_s3.generate_presigned_url.return_value = 'https://example.com/presigned'
+        mock_boto_client.return_value = mock_s3
+
+        response = self.presign()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['key'].startswith(f'device/{self.camera.public_camera_id}/'))
+
     def test_presigned_upload_rejects_unsupported_content_type(self):
-        response = self.presign(self.camera.public_camera_id, content_type='text/plain')
+        response = self.presign(content_type='text/plain')
         self.assertEqual(response.status_code, 400)
-
-    def test_presigned_upload_other_users_camera_returns_404(self):
-        other_camera = Camera.objects.create(owner=self.other_user, location='Garage')
-        response = self.presign(other_camera.public_camera_id)
-        self.assertEqual(response.status_code, 404)
-
-    def test_presigned_upload_unknown_camera_returns_404(self):
-        response = self.presign('019f87a0-b11b-7f64-b1c5-ae28cc33aa89')
-        self.assertEqual(response.status_code, 404)
 
     def test_presigned_upload_requires_authentication_returns_401(self):
         self.client.credentials()
-        response = self.presign(self.camera.public_camera_id)
+        response = self.presign()
+        self.assertEqual(response.status_code, 401)
+
+    def test_presigned_upload_rejects_a_human_users_jwt(self):
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        response = self.presign()
+        self.assertEqual(response.status_code, 401)
+
+    def test_presigned_upload_rejects_jwt_of_revoked_camera(self):
+        self.camera.revoked = True
+        self.camera.save()
+        response = self.presign()
+        self.assertEqual(response.status_code, 401)
+
+    def test_presigned_upload_rejects_jwt_of_deleted_camera(self):
+        self.camera.delete()
+        response = self.presign()
+        self.assertEqual(response.status_code, 401)
+
+
+class CameraTokenExchangeTests(TestCase):
+    """Covers exchanging a device token (from CameraRegistrationView) for a
+    short-lived camera-scoped JWT via CameraTokenExchangeView."""
+
+    def setUp(self):
+        self.client = APIClient()
+        claim_token = self.client.post(
+            reverse('camera:create_camera'), data={'device_id': DEVICE_ID}, format='json'
+        ).json()['claim_token']
+        self.device_token = self.client.post(
+            reverse('camera:register_camera'),
+            data={'device_id': DEVICE_ID, 'claim_token': claim_token},
+            format='json',
+        ).json()['device_token']
+        self.camera = Camera.objects.get(device_id=DEVICE_ID)
+
+    def exchange(self, device_token=None, header=None):
+        kwargs = {}
+        if header is not None:
+            kwargs['HTTP_AUTHORIZATION'] = header
+        elif device_token is not None:
+            kwargs['HTTP_AUTHORIZATION'] = f'Device {device_token}'
+        return self.client.post(reverse('camera:token_exchange'), **kwargs)
+
+    def test_token_exchange_returns_camera_scoped_jwt(self):
+        response = self.exchange(self.device_token)
+        self.assertEqual(response.status_code, 200)
+        token = AccessToken(response.json()['access'])
+        self.assertEqual(token['scope'], 'camera')
+        self.assertEqual(token['public_camera_id'], str(self.camera.public_camera_id))
+
+    def test_token_exchange_invalid_device_token_returns_401(self):
+        response = self.exchange('not-a-real-token')
+        self.assertEqual(response.status_code, 401)
+
+    def test_token_exchange_missing_auth_header_returns_401(self):
+        response = self.exchange()
+        self.assertEqual(response.status_code, 401)
+
+    def test_token_exchange_malformed_header_returns_401(self):
+        response = self.exchange(header='Device')
+        self.assertEqual(response.status_code, 401)
+
+    def test_token_exchange_revoked_camera_returns_401(self):
+        self.camera.revoked = True
+        self.camera.save()
+        response = self.exchange(self.device_token)
+        self.assertEqual(response.status_code, 401)
+
+    def test_camera_jwt_cannot_authenticate_as_a_user(self):
+        access = self.exchange(self.device_token).json()['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
+        response = self.client.get(reverse('camera:camera-list'))
         self.assertEqual(response.status_code, 401)

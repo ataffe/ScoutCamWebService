@@ -3,10 +3,11 @@ from django.urls import path
 
 from camera.views import (
     CameraViewSet,
-    PresignedUploadView,
+    PresignedUploadUrlView,
     ProvisionCameraView,
     CameraRegistrationView,
     CameraClaimView,
+    CameraTokenExchangeView,
 )
 
 app_name = 'camera'
@@ -18,9 +19,10 @@ urlpatterns = [
     # These must come before the router's URLs: the router's detail route
     # (cameras/<public_camera_id>/) is greedy and would otherwise swallow
     # cameras/provision/, cameras/register/, and cameras/claim/ as lookups.
-    path('cameras/presign/<uuid:public_camera_id>/', PresignedUploadView.as_view(), name='presigned_upload'),
+    path('cameras/presigned_upload_url/', PresignedUploadUrlView.as_view(), name='presigned_upload'),
     path('cameras/provision/', ProvisionCameraView.as_view(), name='create_camera'),
     path('cameras/register/', CameraRegistrationView.as_view(), name='register_camera'),
     path('cameras/claim/', CameraClaimView.as_view(), name='claim_camera'),
+    path('cameras/auth/token/', CameraTokenExchangeView.as_view(), name='token_exchange'),
     *camera_router.urls,
 ]
