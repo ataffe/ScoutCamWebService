@@ -1,4 +1,4 @@
-# ScoutCamService
+# ScoutCam Web Service
 
 A scalable web service built using Django for managing users, cameras, and rules etc. for the scout notification camera system.
 This web service handles registering / logging in users, and CRUD operations for users, cameras and rules for cameras. It also serves presigned urls to the Scout camera client for uploading images to AWS S3.
