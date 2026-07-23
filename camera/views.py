@@ -21,7 +21,7 @@ from camera.serializers import CameraSerializer, CameraRegistrationSerializer, P
 from camera.authentication import CameraTokenAuthentication, CameraJWTAuthentication
 
 ALLOWED_TYPES = {"image/jpeg", "image/png"}
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('Camera API')
 
 class CameraTokenExchangeView(APIView):
     authentication_classes = [CameraTokenAuthentication]
@@ -86,6 +86,10 @@ class CameraRegistrationView(APIView):
         except Camera.DoesNotExist:
             return Response({'detail': 'Camera does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
+        if camera.device_token_hash:
+            return Response({'detail': 'Camera already registered'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Double check the claim token for this camera.
         claim_token = serializer.validated_data['claim_token']
         claim_token_hash = hashlib.sha256(claim_token.encode('utf-8')).hexdigest()
         if not hmac.compare_digest(claim_token_hash, camera.claim_token_hash):
@@ -95,9 +99,7 @@ class CameraRegistrationView(APIView):
         device_secret = secrets.token_urlsafe(24)
         device_token = f'{device_id}_{device_secret}'
         device_token_hash = hashlib.sha256(device_token.encode('utf-8')).hexdigest()
-        # Claim token is single use: clear it so it can't be replayed to re-register.
         camera.device_token_hash = device_token_hash
-        camera.claim_token_hash = ''
         camera.save()
         logger.info(f'Registered new camera with device_id: {device_id}')
         return Response({'device_token': device_token, 'public_camera_id': camera.public_camera_id},
@@ -109,18 +111,18 @@ class CameraClaimView(APIView):
     def post(self, request):
         serializer = ClaimCameraSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        device_token = serializer.validated_data['device_token']
-        device_token_hash = hashlib.sha256(device_token.encode('utf-8')).hexdigest()
-        device_id = device_token.split('_', 1)[0]
+        claim_token = serializer.validated_data['claim_token']
+        claim_token_hash = hashlib.sha256(claim_token.encode('utf-8')).hexdigest()
+        device_id = claim_token.split('_', 1)[0]
 
         try:
             camera = Camera.objects.get(device_id=device_id)
         except Camera.DoesNotExist:
             return Response({'detail': 'Camera does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-        if not hmac.compare_digest(device_token_hash, camera.device_token_hash):
-            logger.warning(f'Invalid device token used for claim of device_id: {device_id}')
-            return Response({'detail': 'Device token does not match'}, status=status.HTTP_400_BAD_REQUEST)
+        if not hmac.compare_digest(claim_token_hash, camera.claim_token_hash):
+            logger.warning(f'Invalid claim token used for claim of device_id: {device_id}')
+            return Response({'detail': 'claim token does not match'}, status=status.HTTP_400_BAD_REQUEST)
 
         if camera.claimed:
             return Response({'detail': 'Camera already claimed'}, status=status.HTTP_400_BAD_REQUEST)
@@ -129,8 +131,9 @@ class CameraClaimView(APIView):
         camera.location = serializer.validated_data['location']
         camera.claimed = True
         camera.claimed_at = timezone.now()
+        camera.claim_token_hash = ''
         camera.save()
-
+        logger.info(f'Claimed new camera with device_id: {device_id}')
         return Response({'public_camera_id': camera.public_camera_id}, status=status.HTTP_200_OK)
 
 

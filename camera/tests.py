@@ -167,10 +167,10 @@ class CameraProvisioningFlowTests(TestCase):
             format='json',
         )
 
-    def claim(self, device_token, location='Front door'):
+    def claim(self, claim_token, location='Front door'):
         return self.client.post(
             reverse('camera:claim_camera'),
-            data={'device_token': device_token, 'location': location},
+            data={'claim_token': claim_token, 'location': location},
             format='json',
         )
 
@@ -231,6 +231,27 @@ class CameraProvisioningFlowTests(TestCase):
         second = self.register(DEVICE_ID, claim_token)
         self.assertEqual(second.status_code, 400)
 
+    def test_register_already_registered_camera_returns_400(self):
+        claim_token = self.provision().json()['claim_token']
+        first = self.register(DEVICE_ID, claim_token)
+        self.assertEqual(first.status_code, 201)
+        original_device_token_hash = Camera.objects.get(device_id=DEVICE_ID).device_token_hash
+
+        second = self.register(DEVICE_ID, claim_token)
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(second.json()['detail'], 'Camera already registered')
+
+        camera = Camera.objects.get(device_id=DEVICE_ID)
+        self.assertEqual(camera.device_token_hash, original_device_token_hash)
+
+    def test_register_already_registered_camera_rejects_even_with_wrong_claim_token(self):
+        claim_token = self.provision().json()['claim_token']
+        self.register(DEVICE_ID, claim_token)
+
+        response = self.register(DEVICE_ID, 'x' * 32)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['detail'], 'Camera already registered')
+
     # --- Claim ---
 
     def test_claim_camera_requires_authentication_returns_401(self):
@@ -239,10 +260,9 @@ class CameraProvisioningFlowTests(TestCase):
 
     def test_claim_camera_returns_200_and_sets_owner(self):
         claim_token = self.provision().json()['claim_token']
-        device_token = self.register(DEVICE_ID, claim_token).json()['device_token']
 
         self.authenticate(self.user)
-        response = self.claim(device_token, location='Back yard')
+        response = self.claim(claim_token, location='Back yard')
         self.assertEqual(response.status_code, 200)
 
         camera = Camera.objects.get(device_id=DEVICE_ID)
@@ -272,20 +292,40 @@ class CameraProvisioningFlowTests(TestCase):
 
     def test_claim_already_claimed_camera_returns_400(self):
         claim_token = self.provision().json()['claim_token']
-        device_token = self.register(DEVICE_ID, claim_token).json()['device_token']
+        self.register(DEVICE_ID, claim_token)
 
         self.authenticate(self.user)
-        self.claim(device_token)
+        self.claim(claim_token)
 
         other_user = User.objects.create_user(
             username='bob', email='bob@example.com', password='StrongPass123!',
             first_name='Bob', last_name='Jones',
         )
         self.authenticate(other_user)
-        response = self.claim(device_token)
+        response = self.claim(claim_token)
         self.assertEqual(response.status_code, 400)
         camera = Camera.objects.get(device_id=DEVICE_ID)
         self.assertEqual(camera.owner, self.user)
+
+    def test_claim_camera_clears_claim_token_hash(self):
+        claim_token = self.provision().json()['claim_token']
+
+        self.authenticate(self.user)
+        self.claim(claim_token)
+
+        camera = Camera.objects.get(device_id=DEVICE_ID)
+        self.assertEqual(camera.claim_token_hash, '')
+
+    def test_claim_camera_works_without_prior_registration(self):
+        claim_token = self.provision().json()['claim_token']
+
+        self.authenticate(self.user)
+        response = self.claim(claim_token, location='Back yard')
+        self.assertEqual(response.status_code, 200)
+
+        camera = Camera.objects.get(device_id=DEVICE_ID)
+        self.assertEqual(camera.owner, self.user)
+        self.assertTrue(camera.claimed)
 
 
 class PresignedUploadTests(TestCase):

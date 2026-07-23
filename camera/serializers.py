@@ -34,7 +34,7 @@ class ProvisionCameraSerializer(serializers.Serializer):
         trim_whitespace=True)
 
 class ClaimCameraSerializer(serializers.Serializer):
-    device_token = serializers.CharField(
+    claim_token = serializers.CharField(
         max_length=128,
         trim_whitespace=True,
         allow_blank=False
