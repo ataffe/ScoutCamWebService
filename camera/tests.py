@@ -18,13 +18,14 @@ def camera_access_token(camera):
     token['scope'] = 'camera'
     return str(token)
 
-def make_user(username, email, password='StrongPass123!', first_name='Test', last_name='User'):
+def make_user(username, email, password='StrongPass123!', first_name='Test', last_name='User', is_staff=False):
     return User.objects.create_user(
         username=username,
         email=email,
         password=password,
         first_name=first_name,
         last_name=last_name,
+        is_staff=is_staff,
     )
 
 class CameraTests(TestCase):
@@ -104,6 +105,33 @@ class CameraTests(TestCase):
         response = self.client.get(reverse('camera:camera-list'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
+
+    def test_staff_user_with_all_true_sees_all_cameras(self):
+        staff_user = make_user('carol', 'carol@example.com', first_name='Carol', last_name='Doe', is_staff=True)
+        Camera.objects.create(owner=self.other_user, location='Garage')
+        self.authenticate(user=staff_user)
+
+        response = self.client.get(reverse('camera:camera-list'), {'all': 'true'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 2)
+
+    def test_staff_user_without_all_param_sees_only_owned(self):
+        staff_user = make_user('carol', 'carol@example.com', first_name='Carol', last_name='Doe', is_staff=True)
+        Camera.objects.create(owner=self.other_user, location='Garage')
+        self.authenticate(user=staff_user)
+
+        response = self.client.get(reverse('camera:camera-list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_non_staff_user_with_all_true_still_filtered_to_owned(self):
+        Camera.objects.create(owner=self.other_user, location='Garage')
+
+        response = self.client.get(reverse('camera:camera-list'), {'all': 'true'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['location'], 'Front door')
 
     def test_create_response_includes_public_camera_id(self):
         payload = {'location': 'Driveway'}
