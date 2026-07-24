@@ -41,7 +41,13 @@ class CameraViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Camera.objects.filter(owner=self.request.user)
+        user = self.request.user
+        queryset = Camera.objects.all()
+
+        if user.is_staff and self.request.query_params.get('all') == 'true':
+            return queryset
+
+        return queryset.filter(owner=user)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
